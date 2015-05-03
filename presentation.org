@@ -10,57 +10,19 @@ pandoc -t slidy -s presentation.org -o presentation.html
 
 **** TODO
      - [X] meaninf of [unit] [install] [service]
-     - [ ] generic interpreted specifiers
-       - [[www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers]]
      - [ ] what does enable do?
        - [[www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers]]
-     - [ ] check out cronie.service
-     - [ ] man crond as this is what the cronie.service runs
+     - [X] check out cronie.service
+     - [X] man crond as this is what the cronie.service runs
        - ExecStart=/usr/bin/crond -n -m '/usr/bin/msmtp -t'
      - [ ] Resume/suspend
-     - [ ] fabrice example
-       - cron equiv
-       - 01 * * * * /bin/echo Hello, world!
 
 **** Intro
      About me
-     :HIDDEN:
-     Came to wloo in 2007 for university. Liked it so much I
-     stayed for a masters. 
 
-     Studying geography and doing some stats, machine
-     learning, and working with R. 
+     Reason for systemd timers
 
-     When I finished and had some time off while looking for
-     work, I thought it'd be a great time to switch to linux.
-
-     Something made me think Arch would be a good 1st
-     distro. It was! Other than messing up the bootloader on
-     the 1st installation attempt. I liked it so much I put
-     it on this machine (with btrfs)
-
-     I've found it more stable than my fiance's mint
-     machine, granted the arch boxes get more TLC.
-
-     Anyway, the BTRFS talk put some fear in because it was
-     a) excellent and b)raised a bit of debate and critical
-     evaluation. why did i volunteer to display my ignorance
-     of systemd!
-
-     I may be liberal with my focus on the 'timer' aspect of
-     systemd.
-     :END:
-
-**** Purpose
-     share my motivation and experience using systemd timers
-
-     motivation
-     :HIDDEN: 
-     This can be covered quickly. I wanted to run something
-     at a calendar interval, and it's an opportunity to
-     learn. Also systemd available in base arch system, cron
-     is an additional package.
-     :END:
+     Overview of presentation
 
 **** About systemd
 
@@ -368,7 +330,7 @@ WantedBy=timers.target
      bool, should the timer's activation resume the system
      from suspend
 
-**** TODO Recall Cron
+**** Recall Cron
 Run from crontab
 
 #+begin_src sh :results verbatim code replace
@@ -392,6 +354,23 @@ Or /etc/cron.[frequency]
 #+begin_src sh :results code replace output
 ls /etc/cron*
 #+end_src
+
+#+RESULTS:
+#+BEGIN_SRC sh
+/etc/cron.deny
+
+/etc/cron.d:
+0hourly
+
+/etc/cron.daily:
+
+/etc/cron.hourly:
+0anacron
+
+/etc/cron.monthly:
+
+/etc/cron.weekly:
+#+END_SRC
 
 **** Putting it together
      Understand what unit files are, how service and timer
@@ -445,6 +424,7 @@ cat /etc/systemd/system/pacqkk.service | grep Fail
 OnFailure=status-email-jotham@%i.service
 #+END_SRC
 
+**** 
      That looks for a service by the exact name, and if not
      found instantiates a template service.
 
@@ -462,6 +442,8 @@ Type=oneshot
 ExecStart=/home/joth/bin/systemd-email.sh jothamapaloo@gmail.com %i
 Group=systemd-journal
 #+END_SRC
+
+     [[www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers][interpreted unit file variables]]
 
 **** 
      In this case the template service executes a script
@@ -491,9 +473,9 @@ sleep 10s
 #+END_SRC
 
 **** Cron-like setup
-     
+     [[http://jotham-city.com/blog/2015/04/26/systemd-cron-style/][3 Rs]] - I've done this elsewhere
 
-**** Disadvantages/Caveats
+**** TODO Disadvantages/Caveats
      execstart are not bash commands; can't use pipes and
      redirection
 
