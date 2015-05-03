@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <meta name="author" content="Jotham Apaloo" />
+  <title>systemd Timers</title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; }
+code > span.dt { color: #902000; }
+code > span.dv { color: #40a070; }
+code > span.bn { color: #40a070; }
+code > span.fl { color: #40a070; }
+code > span.ch { color: #4070a0; }
+code > span.st { color: #4070a0; }
+code > span.co { color: #60a0b0; font-style: italic; }
+code > span.ot { color: #007020; }
+code > span.al { color: #ff0000; font-weight: bold; }
+code > span.fu { color: #06287e; }
+code > span.er { color: #ff0000; font-weight: bold; }
+  </style>
+  <link rel="stylesheet" type="text/css" media="screen, projection, print"
+    href="http://www.w3.org/Talks/Tools/Slidy2/styles/slidy.css" />
+  <script src="http://www.w3.org/Talks/Tools/Slidy2/scripts/slidy.js"
+    charset="utf-8" type="text/javascript"></script>
+</head>
+<body>
+<div class="slide titlepage">
+  <h1 class="title">systemd Timers</h1>
+  <p class="author">
+Jotham Apaloo
+  </p>
+  <p class="date">May 4, 2015</p>
+</div>
+<div class="slide section level4">
+
+<div class="sourceCode" rundoc-language="sh" rundoc-results="silent"><pre class="sourceCode bash rundoc-block"><code class="sourceCode bash"><span class="kw">pandoc</span> -t slidy -s presentation.org -o presentation.html
+<span class="co">#http://pandoc.org/README.html#producing-slide-shows-with-pandoc</span></code></pre></div>
+</div>
+<div class="slide section level4">
+<h1>TODO</h1>
+<ul>
+<li>[X] meaninf of [unit] [install] [service]</li>
+<li>[ ] generic interpreted specifiers
+<ul>
+<li><em>www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers</em></li>
+</ul></li>
+<li>[ ] what does enable do?
+<ul>
+<li><em>www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers</em></li>
+</ul></li>
+<li>[ ] check out cronie.service</li>
+<li>[ ] man crond as this is what the cronie.service runs
+<ul>
+<li>ExecStart=/usr/bin/crond -n -m '/usr/bin/msmtp -t'</li>
+</ul></li>
+<li>[ ] Resume/suspend</li>
+<li>[ ] fabrice example
+<ul>
+<li>cron equiv</li>
+<li>01 * * * * /bin/echo Hello, world!</li>
+</ul></li>
+</ul>
+</div>
+<div class="slide section level4">
+<h1>Intro</h1>
+<p>About me :HIDDEN: Came to wloo in 2007 for university. Liked it so much I stayed for a masters.</p>
+<p>Studying geography and doing some stats, machine learning, and working with R.</p>
+<p>When I finished and had some time off while looking for work, I thought it'd be a great time to switch to linux.</p>
+<p>Something made me think Arch would be a good 1st distro. It was! Other than messing up the bootloader on the 1st installation attempt. I liked it so much I put it on this machine (with btrfs)</p>
+<p>I've found it more stable than my fiance's mint machine, granted the arch boxes get more TLC.</p>
+<p>Anyway, the BTRFS talk put some fear in because it was a) excellent and b)raised a bit of debate and critical evaluation. why did i volunteer to display my ignorance of systemd!</p>
+<p>I may be liberal with my focus on the 'timer' aspect of systemd. :END:</p>
+</div>
+<div class="slide section level4">
+<h1>Purpose</h1>
+<p>share my motivation and experience using systemd timers</p>
+<p>motivation :HIDDEN: This can be covered quickly. I wanted to run something at a calendar interval, and it's an opportunity to learn. Also systemd available in base arch system, cron is an additional package. :END:</p>
+</div>
+<div class="slide section level4">
+<h1>About systemd</h1>
+<p>Poettering(Red Hat) and Sievers (SUSE).</p>
+<p>Primary aim is to be an init system.</p>
+<p>Morphed a system and service management collection.</p>
+<p>Controversial.</p>
+<p><a href="http://arstechnica.com/information-technology/2015/05/01/debian-8-linuxs-most-reliable-distro-makes-its-biggest-change-since-1993/1/">Debian Jessie</a> probably marks last of the mainstream distros to accept systemd.</p>
+<blockquote>
+<p>&quot;since systemd appears to be here to stay...it was time to roll up my sleeves and RTFM&quot;</p>
+</blockquote>
+</div>
+<div class="slide section level4">
+<h1>systemd Map</h1>
+<p><img src="./systemd_components.png" alt="" /></p>
+</div>
+<div class="slide section level4">
+<h1>systemctl</h1>
+<p>Worth a couple introductions as some systemd commands are needed for timers</p>
+<p><code>systemctl</code></p>
+<pre><code>systemctl status mandb.service
+</code></pre>
+<pre><code>● man-db.service - Update man-db cache
+   Loaded: loaded (/usr/lib/systemd/system/man-db.service; static; vendor preset: disabled)
+   Active: inactive (dead) since Sun 2015-05-03 09:11:14 EDT; 11min ago
+  Process: 27288 ExecStart=/usr/bin/mandb --quiet (code=exited, status=0/SUCCESS)
+  Process: 27284 ExecStart=/usr/bin/mkdir -m 0755 -p /var/cache/man (code=exited, status=0/SUCCESS)
+ Main PID: 27288 (code=exited, status=0/SUCCESS)
+
+May 03 09:11:10 archLenFlex systemd[1]: Starting Update man-db cache...
+May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1>journalctl</h1>
+<p>Binary log format accessed through</p>
+<p><code>journalctl</code></p>
+<pre><code>journalctl -xu man-db --since today
+</code></pre>
+<pre><code>-- Logs begin at Tue 2014-05-13 09:48:52 EDT, end at Sun 2015-05-03 09:29:00 EDT. --
+May 03 09:11:10 archLenFlex systemd[1]: Starting Update man-db cache...
+-- Subject: Unit man-db.service has begun start-up
+-- Defined-By: systemd
+-- Support: http://lists.freedesktop.org/mailman/listinfo/systemd-devel
+-- 
+-- Unit man-db.service has begun starting up.
+May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
+-- Subject: Unit man-db.service has finished start-up
+-- Defined-By: systemd
+-- Support: http://lists.freedesktop.org/mailman/listinfo/systemd-devel
+-- 
+-- Unit man-db.service has finished starting up.
+-- 
+-- The start-up result is done.
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1>Quick demo</h1>
+<ul>
+<li>systemctl
+<ul>
+<li>running units <code>systemctl</code></li>
+<li>list units</li>
+<li>control-groups</li>
+<li>status</li>
+</ul></li>
+<li>journalctl
+<ul>
+<li>logs (eXtra metadata)</li>
+<li>disk usage</li>
+<li>watch</li>
+</ul></li>
+<li>more later</li>
+</ul>
+</div>
+<div class="slide section level4">
+<h1>Unit files</h1>
+<p>Before systemd timers, understand a bit about unit files in general</p>
+<blockquote>
+<p>Units encapsulate various objects relevant to system boot-up and maintenance.</p>
+</blockquote>
+<p>12 varieties</p>
+<table>
+<tbody>
+<tr class="odd">
+<td align="left"><strong>service</strong></td>
+<td align="left">socket</td>
+<td align="left"><strong>target</strong></td>
+<td align="left">device</td>
+<td align="left">mount</td>
+</tr>
+<tr class="even">
+<td align="left">snapshots</td>
+<td align="left">swap</td>
+<td align="left"><strong>timers</strong></td>
+<td align="left">path</td>
+<td align="left">slice</td>
+</tr>
+<tr class="odd">
+<td align="left">mount</td>
+<td align="left">automount</td>
+<td align="left">slice</td>
+<td align="left">scope</td>
+<td align="left"></td>
+</tr>
+</tbody>
+</table>
+<p>systemd also provides dependency framwork between these units (another presentation perhaps)</p>
+<p>Naming convention uses the unit type as suffix.</p>
+</div>
+<div class="slide section level4">
+<h1></h1>
+<p>Where exactly?</p>
+<p>Regardless of distro, should be able to find them as follows.</p>
+<pre><code>pkg-config systemd --variable=systemdsystemconfdir
+</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">/etc/systemd/system</span>
+</code></pre></div>
+<pre><code>pkg-config systemd --variable=systemduserconfdir
+</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">/etc/systemd/user</span></code></pre></div>
+<p>Those locations take precedence over the unit files installed by packages in</p>
+<p><code>/usr/lib/systemd/</code></p>
+</div>
+<div class="slide section level4">
+<h1>Service Units</h1>
+<p><a href="http://www.freedesktop.org/software/systemd/man/systemd.service.html">manpage</a></p>
+<p>Encodes information about a <em>process</em> governed by systemd.</p>
+<table>
+<tbody>
+<tr class="odd">
+<td align="left">[Unit]</td>
+<td align="left">generic unit information</td>
+</tr>
+<tr class="even">
+<td align="left">[Install]</td>
+<td align="left">installation information</td>
+</tr>
+<tr class="odd">
+<td align="left"></td>
+<td align="left">used by systemctl enable</td>
+</tr>
+<tr class="even">
+<td align="left"></td>
+<td align="left">and disable</td>
+</tr>
+<tr class="odd">
+<td align="left">[%type%]</td>
+<td align="left">type specific configuration</td>
+</tr>
+<tr class="even">
+<td align="left"></td>
+<td align="left">e.g. service, timer</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="slide section level4">
+<h1></h1>
+<pre><code>cat /etc/systemd/system/multi-user.target.wants/ntpd.service
+</code></pre>
+<pre><code>[Unit]
+Description=Network Time Service
+After=network.target nss-lookup.target
+Conflicts=systemd-timesyncd.service
+
+[Service]
+Type=forking
+PrivateTmp=true
+ExecStart=/usr/bin/ntpd -g -u ntp:ntp
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1></h1>
+Service type
+<ul>
+<li><p><strong>Simple</strong> (default under some constraints) assumes <code>ExecStart</code> is main process of the service.</p></li>
+<li><p><strong>Oneshot</strong> assumes process must <em>exit</em> before follow-up units are started.</p></li>
+</ul>
+<p>For the simple timers I wanted to set up, either works.</p>
+</div>
+<div class="slide section level4">
+<h1>TODO</h1>
+<p><code>ExecStart</code></p>
+</div>
+<div class="slide section level4">
+<h1>Target Units</h1>
+Used to group related units.
+<ul>
+<li>A target file (which only containts generic info), <code>myunit.target</code></li>
+<li>and a directory, <code>myunit.target.wants</code>, with all of the service units wanted by the group</li>
+</ul>
+<pre><code>cat /usr/lib/systemd/system/multi-user.target
+</code></pre>
+<pre><code>#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Multi-User System
+Documentation=man:systemd.special(7)
+Requires=basic.target
+Conflicts=rescue.service rescue.target
+After=basic.target rescue.service rescue.target
+AllowIsolate=yes
+</code></pre>
+<pre><code>ls /usr/lib/systemd/system/multi-user.target.wants
+</code></pre>
+<pre><code>dbus.service
+getty.target
+logrotate.timer
+man-db.timer
+shadow.timer
+systemd-ask-password-wall.path
+systemd-logind.service
+systemd-user-sessions.service
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1>Timer Units</h1>
+<p>Same generic [unit] and [install] sections</p>
+<p>And unit type specific [<a href="http://www.freedesktop.org/software/systemd/man/systemd.timer.html">timer</a>] section</p>
+<pre><code>cat /etc/systemd/system/pacqkk.timer
+</code></pre>
+<pre><code>[Unit]
+Description=Pacman -Qkk change observer
+
+[Timer]
+Persistent=True
+OnCalendar=*-*-* 19:00:00
+Unit=pacqkk.service
+
+[Install]
+WantedBy=timers.target
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1>Monotonic Timers</h1>
+<p>Run relative to some event</p>
+<table>
+<thead>
+<tr class="header">
+<th align="left"><strong>specification</strong></th>
+<th align="left"><strong>relative to</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">OnActiveSec</td>
+<td align="left">timer activation</td>
+</tr>
+<tr class="even">
+<td align="left">OnBootSec</td>
+<td align="left">boot</td>
+</tr>
+<tr class="odd">
+<td align="left">OnStartupSec</td>
+<td align="left">systemd start</td>
+</tr>
+<tr class="even">
+<td align="left">OnUnitActiveSec</td>
+<td align="left">activation of unit which timer activates</td>
+</tr>
+<tr class="odd">
+<td align="left">OnUnitInactiveSec</td>
+<td align="left">deactivation of unit which timer activates</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="slide section level4">
+<h1>Calendar Timers</h1>
+<p>Similar to crontab (AFAIK monotonic ones not readily implemented, upd: anacron does this)</p>
+<p>Specified following <a href="http://www.freedesktop.org/software/systemd/man/systemd.time.html#Calendar%20Events">man systemd.time</a> syntax</p>
+<p><code>Day Y-M-D HH:MM:SS</code></p>
+<p><code>*</code> wildcard</p>
+<p><code>m/n</code> at m and all values m+n*i for i in integers</p>
+<p><code>Mon-Fri</code></p>
+<p><code>monday,thursday-saturday</code></p>
+<p>minutely, hourly, daily, ...., quarterly, semiannually, annually also parse to logical timestamps</p>
+</div>
+<div class="slide section level4">
+<h1>Additional Timer Options</h1>
+<p><code>AccuracySec</code></p>
+<p>unit will be activated within this time from what is specified by timer</p>
+<p><code>Unit</code></p>
+<p>defaults (and recommended) to service with same name as timer</p>
+<p><code>Persistent</code></p>
+<p>for timers configured with OnCalendar, runs service if it would've been run one or more times since last activation</p>
+<p><code>WakeSystem</code></p>
+<p>bool, should the timer's activation resume the system from suspend</p>
+</div>
+<div class="slide section level4">
+<h1>TODO Recall Cron</h1>
+<p>Run from crontab</p>
+<pre><code>crontab -l
+</code></pre>
+<pre><code># Chronological table of program loadings                                       
+# Edit with &quot;crontab&quot; for proper functionality, &quot;man 5 crontab&quot; for formatting
+
+MAILTO=jothamapaloo@gmail.com
+
+#mm  hh  DD  MM  W /path/progam [--option]...  ( W = weekday: 0-6 [Sun=0] )
+0 19 * * * /bin/backup_home
+0 20 * * 3 /bin/backup_system &amp;&amp; /bin/backup_storage
+0 21 * * 0 /bin/trim
+</code></pre>
+<p>Or /etc/cron.[frequency]</p>
+<pre><code>ls /etc/cron*
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1>Putting it together</h1>
+<p>Understand what unit files are, how service and timer units are related, and the syntax for timer units.</p>
+<p>Setup a basic timer</p>
+<p>Demonstate how timer targets can be used in the fashion of cron.hourly,daily,weekly,monthly</p>
+</div>
+<div class="slide section level4">
+<h1>Viewing systemd timers</h1>
+<pre><code>systemctl list-timers --all
+</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">NEXT</span>                         LEFT          LAST                         PASSED       UNIT                         ACTIVATES
+<span class="kw">Sun</span> 2015-05-03 19:00:00 EDT  4h 16min left Sat 2015-05-02 19:18:11 EDT  19h ago      pacqkk.timer                 pacqkk.service
+<span class="kw">Mon</span> 2015-05-04 00:00:00 EDT  9h left       Sun 2015-05-03 09:11:10 EDT  5h 32min ago logrotate.timer              logrotate.service
+<span class="kw">Mon</span> 2015-05-04 00:00:00 EDT  9h left       Sun 2015-05-03 09:11:10 EDT  5h 32min ago man-db.timer                 man-db.service
+<span class="kw">Mon</span> 2015-05-04 00:00:00 EDT  9h left       Sun 2015-05-03 09:11:10 EDT  5h 32min ago shadow.timer                 shadow.service
+<span class="kw">Mon</span> 2015-05-04 11:50:54 EDT  21h left      Sun 2015-05-03 11:50:54 EDT  2h 52min ago systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+
+<span class="kw">5</span> timers listed.</code></pre></div>
+</div>
+<div class="slide section level4">
+<h1>TODO Basic Timer</h1>
+<p><code>/etc/systemd/system/</code></p>
+<p>test.timer</p>
+<p>test.service</p>
+</div>
+<div class="slide section level4">
+<h1>Error Email Service</h1>
+<p>Setup a failure status email as a template service.</p>
+<p>From a service <code>[Unit]</code> section</p>
+<pre><code>cat /etc/systemd/system/pacqkk.service | grep Fail
+</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">OnFailure=</span>status-email-jotham<span class="kw">@%i.service</span></code></pre></div>
+<p>That looks for a service by the exact name, and if not found instantiates a template service.</p>
+<pre><code>cat /etc/systemd/system/status-email-jotham@.service
+</code></pre>
+<pre><code>[Unit]
+Description=status email for %I to jotham
+
+[Service]
+Type=oneshot
+ExecStart=/home/joth/bin/systemd-email.sh jothamapaloo@gmail.com %i
+Group=systemd-journal
+</code></pre>
+</div>
+<div class="slide section level4">
+<h1></h1>
+<p>In this case the template service executes a script which takes an email unit name and sends the output of <code>systemctl status</code> to the given email</p>
+<pre><code>cat ~/bin/systemd-email.sh
+</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/bash</span>
+
+<span class="kw">/usr/bin/sendmail</span> -t &lt;&lt;ERRMAIL
+To: &quot;<span class="ot">$1</span>&quot;
+From: systemd &lt;&quot;root@<span class="ot">$HOST</span>&quot;&gt;
+Subject: &quot;<span class="ot">$2</span>&quot;
+Content-Transfer-Encoding: 8bit
+Content-Type: text/p<span class="kw">lain;</span> <span class="ot">charset=</span>UTF-8
+
+<span class="ot">$(</span><span class="kw">systemctl</span> status --full <span class="st">&quot;</span><span class="ot">$2</span><span class="st">&quot;</span><span class="ot">)</span>
+ERRMAIL
+
+# hack?
+s<span class="kw">leep</span> 10s</code></pre></div>
+</div>
+<div class="slide section level4">
+<h1>Cron-like setup</h1>
+</div>
+<div class="slide section level4">
+<h1>Disadvantages/Caveats</h1>
+<p>execstart are not bash commands; can't use pipes and redirection</p>
+<p>environment variables not directly available from config file</p>
+</div>
+<div class="slide section level4">
+<h1>Omitted</h1>
+<p>user mode</p>
+</div>
+<div class="slide section level4">
+<h1>References</h1>
+<p><a href="http://www.freedesktop.org/software/systemd/man/systemd.unit.html">unit manpage</a></p>
+<p><a href="http://www.freedesktop.org/software/systemd/man/systemd.service.html">service manpage</a></p>
+<p><a href="http://patrakov.blogspot.ca/2011/01/writing-systemd-service-files.html">writing service files</a></p>
+<p><a href="https://www.lisenet.com/2014/create-a-systemd-service-to-send-automatic-emails-when-arch-linux-restarts/">timer on restart</a></p>
+<p><a href="https://archive.fosdem.org/2011/interview/lennart-poettering">poettering interview</a></p>
+<p><a href="https://bbs.archlinux.org/viewtopic.php?pid=1149530#p1149530">why arch moved to systemd</a></p>
+<p><a href="http://without-systemd.org/wiki/index.php/Arguments_against_systemd">against systemd</a></p>
+<p><a href="http://0pointer.de/blog/projects/the-biggest-myths.html">systemd myths</a></p>
+<p><a href="https://wiki.debian.org/Debate/initsystem/systemd">debian whiki systemd</a></p>
+<p><a href="http://0pointer.de/blog/projects/instances.html">template units</a></p>
+</div>
+</body>
+</html>

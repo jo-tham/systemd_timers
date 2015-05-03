@@ -1,0 +1,524 @@
+#+TITLE: systemd Timers
+#+AUTHOR: Jotham Apaloo
+#+Date: May 4, 2015
+#+DRAWERS: HIDDEN
+
+#+begin_src sh :results silent
+pandoc -t slidy -s presentation.org -o presentation.html
+#http://pandoc.org/README.html#producing-slide-shows-with-pandoc
+#+end_src
+
+**** TODO
+     - [X] meaninf of [unit] [install] [service]
+     - [ ] generic interpreted specifiers
+       - [[www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers]]
+     - [ ] what does enable do?
+       - [[www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers]]
+     - [ ] check out cronie.service
+     - [ ] man crond as this is what the cronie.service runs
+       - ExecStart=/usr/bin/crond -n -m '/usr/bin/msmtp -t'
+     - [ ] Resume/suspend
+     - [ ] fabrice example
+       - cron equiv
+       - 01 * * * * /bin/echo Hello, world!
+
+**** Intro
+     About me
+     :HIDDEN:
+     Came to wloo in 2007 for university. Liked it so much I
+     stayed for a masters. 
+
+     Studying geography and doing some stats, machine
+     learning, and working with R. 
+
+     When I finished and had some time off while looking for
+     work, I thought it'd be a great time to switch to linux.
+
+     Something made me think Arch would be a good 1st
+     distro. It was! Other than messing up the bootloader on
+     the 1st installation attempt. I liked it so much I put
+     it on this machine (with btrfs)
+
+     I've found it more stable than my fiance's mint
+     machine, granted the arch boxes get more TLC.
+
+     Anyway, the BTRFS talk put some fear in because it was
+     a) excellent and b)raised a bit of debate and critical
+     evaluation. why did i volunteer to display my ignorance
+     of systemd!
+
+     I may be liberal with my focus on the 'timer' aspect of
+     systemd.
+     :END:
+
+**** Purpose
+     share my motivation and experience using systemd timers
+
+     motivation
+     :HIDDEN: 
+     This can be covered quickly. I wanted to run something
+     at a calendar interval, and it's an opportunity to
+     learn. Also systemd available in base arch system, cron
+     is an additional package.
+     :END:
+
+**** About systemd
+
+     Poettering(Red Hat) and Sievers (SUSE).
+
+     Primary aim is to be an init system. 
+
+     Morphed a system and service management collection.
+
+     Controversial.
+
+     [[http://arstechnica.com/information-technology/2015/05/01/debian-8-linuxs-most-reliable-distro-makes-its-biggest-change-since-1993/1/][Debian Jessie]] probably marks last of the mainstream
+     distros to accept systemd.
+
+#+BEGIN_QUOTE     
+     "since systemd appears to be here to stay...it was time
+     to roll up my sleeves and RTFM"
+#+END_QUOTE
+
+**** systemd Map
+
+#+CAPTION: [[http://en.wikipedia.org/wiki/File:Systemd_components.svg][from systemd wiki]]
+[[./systemd_components.png]]
+
+**** systemctl
+     Worth a couple introductions as some systemd commands
+     are needed for timers
+
+     ~systemctl~
+#+begin_src sh :resultns code replace 
+systemctl status mandb.service
+#+end_src
+
+#+RESULTS:
+#+begin_src
+● man-db.service - Update man-db cache
+   Loaded: loaded (/usr/lib/systemd/system/man-db.service; static; vendor preset: disabled)
+   Active: inactive (dead) since Sun 2015-05-03 09:11:14 EDT; 11min ago
+  Process: 27288 ExecStart=/usr/bin/mandb --quiet (code=exited, status=0/SUCCESS)
+  Process: 27284 ExecStart=/usr/bin/mkdir -m 0755 -p /var/cache/man (code=exited, status=0/SUCCESS)
+ Main PID: 27288 (code=exited, status=0/SUCCESS)
+
+May 03 09:11:10 archLenFlex systemd[1]: Starting Update man-db cache...
+May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
+#+end_src
+
+**** journalctl
+     Binary log format accessed through
+
+     ~journalctl~
+#+begin_src sh :results code replace output
+journalctl -xu man-db --since today
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+-- Logs begin at Tue 2014-05-13 09:48:52 EDT, end at Sun 2015-05-03 09:29:00 EDT. --
+May 03 09:11:10 archLenFlex systemd[1]: Starting Update man-db cache...
+-- Subject: Unit man-db.service has begun start-up
+-- Defined-By: systemd
+-- Support: http://lists.freedesktop.org/mailman/listinfo/systemd-devel
+-- 
+-- Unit man-db.service has begun starting up.
+May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
+-- Subject: Unit man-db.service has finished start-up
+-- Defined-By: systemd
+-- Support: http://lists.freedesktop.org/mailman/listinfo/systemd-devel
+-- 
+-- Unit man-db.service has finished starting up.
+-- 
+-- The start-up result is done.
+#+END_SRC
+**** Quick demo
+     - systemctl
+       - running units ~systemctl~
+       - list units
+       - control-groups
+       - status
+     - journalctl
+       - logs (eXtra metadata)
+       - disk usage
+       - watch
+     - more later
+
+**** Unit files
+     Before systemd timers, understand a bit about unit
+     files in general
+
+#+BEGIN_QUOTE
+Units encapsulate various objects relevant to system boot-up
+and maintenance.
+#+END_QUOTE
+
+     12 varieties
+
+     |-----------+-----------+----------+--------+-------|
+     | *service* | socket    | *target* | device | mount |
+     | snapshots | swap      | *timers* | path   | slice |
+     | mount     | automount | slice    | scope  |       |
+     |-----------+-----------+----------+--------+-------|
+
+     systemd also provides dependency framwork between these
+     units (another presentation perhaps)
+
+     Naming convention uses the unit type as suffix.
+**** 
+     Where exactly?
+
+     Regardless of distro, should be able to find them as
+     follows.
+
+#+begin_src sh :results code replace output :session  
+pkg-config systemd --variable=systemdsystemconfdir
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC sh
+/etc/systemd/system
+
+#+END_SRC
+
+#+begin_src sh :results code replace output :session  
+pkg-config systemd --variable=systemduserconfdir
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC sh
+/etc/systemd/user
+#+END_SRC
+
+     Those locations take precedence over the unit files
+     installed by packages in
+
+     ~/usr/lib/systemd/~
+
+**** Service Units
+     [[http://www.freedesktop.org/software/systemd/man/systemd.service.html][manpage]]
+
+     Encodes information about a /process/ governed by systemd.
+
+     | [Unit]    | generic unit information    |
+     |           |                             |
+     | [Install] | installation information    |
+     |           | used by systemctl enable    |
+     |           | and disable                 |
+     |           |                             |
+     | [%type%]  | type specific configuration |
+     |           | e.g. service, timer         |
+
+**** 
+#+begin_src sh :results code replace output
+cat /etc/systemd/system/multi-user.target.wants/ntpd.service
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+[Unit]
+Description=Network Time Service
+After=network.target nss-lookup.target
+Conflicts=systemd-timesyncd.service
+
+[Service]
+Type=forking
+PrivateTmp=true
+ExecStart=/usr/bin/ntpd -g -u ntp:ntp
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+#+END_SRC
+
+**** 
+     Service type
+       - *Simple* (default under some constraints) assumes
+         ~ExecStart~ is main process of the service.
+
+       - *Oneshot* assumes process must /exit/ before
+         follow-up units are started.
+
+     For the simple timers I wanted to set up, either works.
+
+**** TODO 
+     ~ExecStart~
+
+**** Target Units
+     Used to group related units. 
+     - A target file (which only containts generic info),
+       ~myunit.target~
+     - and a directory, ~myunit.target.wants~, with all of
+       the service units wanted by the group
+
+#+begin_src sh :results code replace output
+cat /usr/lib/systemd/system/multi-user.target
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Multi-User System
+Documentation=man:systemd.special(7)
+Requires=basic.target
+Conflicts=rescue.service rescue.target
+After=basic.target rescue.service rescue.target
+AllowIsolate=yes
+#+END_SRC
+
+#+begin_src sh :results code replace output
+ls /usr/lib/systemd/system/multi-user.target.wants
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+dbus.service
+getty.target
+logrotate.timer
+man-db.timer
+shadow.timer
+systemd-ask-password-wall.path
+systemd-logind.service
+systemd-user-sessions.service
+#+END_SRC
+
+**** Timer Units
+
+     Same generic [unit] and [install] sections
+
+     And unit type specific [[[http://www.freedesktop.org/software/systemd/man/systemd.timer.html][timer]]] section
+     
+#+begin_src sh :results code replace output
+cat /etc/systemd/system/pacqkk.timer
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+[Unit]
+Description=Pacman -Qkk change observer
+
+[Timer]
+Persistent=True
+OnCalendar=*-*-* 19:00:00
+Unit=pacqkk.service
+
+[Install]
+WantedBy=timers.target
+#+END_SRC
+
+**** Monotonic Timers
+     Run relative to some event
+
+|-------------------+--------------------------------------------|
+| *specification*   | *relative to*                              |
+|-------------------+--------------------------------------------|
+| OnActiveSec       | timer activation                           |
+| OnBootSec         | boot                                       |
+| OnStartupSec      | systemd start                              |
+| OnUnitActiveSec   | activation of unit which timer activates   |
+| OnUnitInactiveSec | deactivation of unit which timer activates |
+|-------------------+--------------------------------------------|
+
+**** Calendar Timers
+     Similar to crontab (AFAIK monotonic ones not readily
+     implemented, upd: anacron does this)
+
+     Specified following [[http://www.freedesktop.org/software/systemd/man/systemd.time.html#Calendar%20Events][man systemd.time]] syntax
+
+     ~Day Y-M-D HH:MM:SS~
+     
+     ~*~ wildcard
+
+     ~m/n~ at m and all values m+n*i for i in integers
+
+     ~Mon-Fri~
+
+     ~monday,thursday-saturday~
+
+     minutely, hourly, daily, ...., quarterly, semiannually,
+     annually also parse to logical timestamps
+     
+**** Additional Timer Options
+     ~AccuracySec~ 
+
+     unit will be activated within this time from what is
+     specified by timer
+     
+     ~Unit~
+     
+     defaults (and recommended) to service with same name as
+     timer
+
+     ~Persistent~ 
+
+     for timers configured with OnCalendar, runs service if
+     it would've been run one or more times since last
+     activation
+
+     ~WakeSystem~ 
+
+     bool, should the timer's activation resume the system
+     from suspend
+
+**** TODO Recall Cron
+Run from crontab
+
+#+begin_src sh :results verbatim code replace
+crontab -l
+#+end_src
+
+#+BEGIN_SRC
+# Chronological table of program loadings                                       
+# Edit with "crontab" for proper functionality, "man 5 crontab" for formatting
+
+MAILTO=jothamapaloo@gmail.com
+
+#mm  hh  DD  MM  W /path/progam [--option]...  ( W = weekday: 0-6 [Sun=0] )
+0 19 * * * /bin/backup_home
+0 20 * * 3 /bin/backup_system && /bin/backup_storage
+0 21 * * 0 /bin/trim
+#+END_SRC
+
+Or /etc/cron.[frequency]
+
+#+begin_src sh :results code replace output
+ls /etc/cron*
+#+end_src
+
+**** Putting it together
+     Understand what unit files are, how service and timer
+     units are related, and the syntax for timer units.
+
+     - Setup a basic timer
+
+     - Creating a template service to run when services fail
+
+     - Demonstate how timer targets can be used in the fashion
+       of cron.hourly,daily,weekly,monthly
+
+**** Viewing systemd timers
+
+#+begin_src sh :results code replace output
+systemctl list-timers --all
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC sh
+NEXT                         LEFT          LAST                         PASSED       UNIT                         ACTIVATES
+Sun 2015-05-03 19:00:00 EDT  4h 16min left Sat 2015-05-02 19:18:11 EDT  19h ago      pacqkk.timer                 pacqkk.service
+Mon 2015-05-04 00:00:00 EDT  9h left       Sun 2015-05-03 09:11:10 EDT  5h 32min ago logrotate.timer              logrotate.service
+Mon 2015-05-04 00:00:00 EDT  9h left       Sun 2015-05-03 09:11:10 EDT  5h 32min ago man-db.timer                 man-db.service
+Mon 2015-05-04 00:00:00 EDT  9h left       Sun 2015-05-03 09:11:10 EDT  5h 32min ago shadow.timer                 shadow.service
+Mon 2015-05-04 11:50:54 EDT  21h left      Sun 2015-05-03 11:50:54 EDT  2h 52min ago systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+
+5 timers listed.
+#+END_SRC
+
+**** TODO Basic Timer
+
+     ~/etc/systemd/system/~
+
+         test.timer
+
+	 test.service
+
+**** Error Email Service
+
+     Setup a failure status email as a template service.
+
+     From a service ~[Unit]~ section
+
+#+begin_src sh :results code replace output
+cat /etc/systemd/system/pacqkk.service | grep Fail
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC sh
+OnFailure=status-email-jotham@%i.service
+#+END_SRC
+
+     That looks for a service by the exact name, and if not
+     found instantiates a template service.
+
+#+begin_src sh :results code replace output
+cat /etc/systemd/system/status-email-jotham@.service
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+[Unit]
+Description=status email for %I to jotham
+
+[Service]
+Type=oneshot
+ExecStart=/home/joth/bin/systemd-email.sh jothamapaloo@gmail.com %i
+Group=systemd-journal
+#+END_SRC
+
+**** 
+     In this case the template service executes a script
+     which takes an email unit name and sends the output of
+     ~systemctl status~ to the given email
+
+#+begin_src sh :results code replace output
+cat ~/bin/systemd-email.sh
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+#!/bin/bash
+
+/usr/bin/sendmail -t <<ERRMAIL
+To: "$1"
+From: systemd <"root@$HOST">
+Subject: "$2"
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+
+$(systemctl status --full "$2")
+ERRMAIL
+
+# hack?
+sleep 10s
+#+END_SRC
+
+**** Cron-like setup
+     
+
+**** Disadvantages/Caveats
+     execstart are not bash commands; can't use pipes and
+     redirection
+
+     environment variables not directly available from config file
+
+**** Omitted
+     user mode
+
+**** References
+     [[http://www.freedesktop.org/software/systemd/man/systemd.unit.html][unit manpage]]
+
+     [[http://www.freedesktop.org/software/systemd/man/systemd.service.html][service manpage]]
+
+     [[http://patrakov.blogspot.ca/2011/01/writing-systemd-service-files.html][writing service files]]
+
+     [[https://www.lisenet.com/2014/create-a-systemd-service-to-send-automatic-emails-when-arch-linux-restarts/][timer on restart]]
+
+     [[https://archive.fosdem.org/2011/interview/lennart-poettering][poettering interview]]
+
+     [[https://bbs.archlinux.org/viewtopic.php?pid=1149530#p1149530][why arch moved to systemd]]
+
+     [[http://without-systemd.org/wiki/index.php/Arguments_against_systemd][against systemd]]
+
+     [[http://0pointer.de/blog/projects/the-biggest-myths.html][systemd myths]]
+
+     [[https://wiki.debian.org/Debate/initsystem/systemd][debian whiki systemd]]
+
+     [[http://0pointer.de/blog/projects/instances.html][template units]]
