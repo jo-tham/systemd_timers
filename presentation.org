@@ -8,44 +8,26 @@ pandoc -t slidy -s presentation.org -o presentation.html
 #http://pandoc.org/README.html#producing-slide-shows-with-pandoc
 #+end_src
 
-**** TODO
-     - [X] meaninf of [unit] [install] [service]
-     - [ ] what does enable do?
-       - [[www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers]]
-     - [X] check out cronie.service
-     - [X] man crond as this is what the cronie.service runs
-       - ExecStart=/usr/bin/crond -n -m '/usr/bin/msmtp -t'
-     - [ ] Resume/suspend
-
 **** Intro
-     About me
-
-     Reason for systemd timers
+     Motivation for systemd timers
 
      Overview of presentation
 
 **** About systemd
 
-     Poettering(Red Hat) and Sievers (SUSE).
+     Poettering (Red Hat) and Sievers (SUSE).
 
-     Primary aim is to be an init system. 
+     An init system and service manager.
 
-     Morphed a system and service management collection.
-
-     Controversial.
+     Subject of some rather entertaining controversy.
 
      [[http://arstechnica.com/information-technology/2015/05/01/debian-8-linuxs-most-reliable-distro-makes-its-biggest-change-since-1993/1/][Debian Jessie]] probably marks last of the mainstream
-     distros to accept systemd.
+     distros to accept systemd ([2015-04-25 Sat]).
 
 #+BEGIN_QUOTE     
      "since systemd appears to be here to stay...it was time
      to roll up my sleeves and RTFM"
 #+END_QUOTE
-
-**** systemd Map
-
-#+CAPTION: [[http://en.wikipedia.org/wiki/File:Systemd_components.svg][from systemd wiki]]
-[[./systemd_components.png]]
 
 **** systemctl
      Worth a couple introductions as some systemd commands
@@ -97,9 +79,8 @@ May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
 #+END_SRC
 **** Quick demo
      - systemctl
-       - running units ~systemctl~
        - list units
-       - control-groups
+       - systemd control-groups
        - status
      - journalctl
        - logs (eXtra metadata)
@@ -158,7 +139,7 @@ pkg-config systemd --variable=systemduserconfdir
 
      ~/usr/lib/systemd/~
 
-**** Service Units
+**** 
      [[http://www.freedesktop.org/software/systemd/man/systemd.service.html][manpage]]
 
      Encodes information about a /process/ governed by systemd.
@@ -166,13 +147,13 @@ pkg-config systemd --variable=systemduserconfdir
      | [Unit]    | generic unit information    |
      |           |                             |
      | [Install] | installation information    |
-     |           | used by systemctl enable    |
-     |           | and disable                 |
+     |           | used not at runtime but by  |
+     |           | systemctl enableand disable |
      |           |                             |
      | [%type%]  | type specific configuration |
      |           | e.g. service, timer         |
 
-**** 
+**** Service Unit
 #+begin_src sh :results code replace output
 cat /etc/systemd/system/multi-user.target.wants/ntpd.service
 #+end_src
@@ -196,16 +177,46 @@ WantedBy=multi-user.target
 
 **** 
      Service type
-       - *Simple* (default under some constraints) assumes
-         ~ExecStart~ is main process of the service.
+       - *Simple* assumes ~ExecStart~ is main process of the
+         service.
 
        - *Oneshot* assumes process must /exit/ before
          follow-up units are started.
 
      For the simple timers I wanted to set up, either works.
 
-**** TODO 
-     ~ExecStart~
+**** 
+
+#+begin_src
+WantedBy=multi-user.target
+#+end_src
+
+     Starts the current unit when the *multi-user.target*
+     unit is started
+
+     Enabling the unit containing WantedBy creates a symlink
+     in the wants directory of the listed unit
+     
+     All units (symlinked or otherwise) in *some-unit.wants*
+     are implicity dependencies of *some-unit*
+
+**** 
+     *ExecStart*
+
+     Absolute path to executable followed by arguments to
+     that executable
+
+     Prefix with "-" to ignore failures
+
+     With ~Type=oneshot~, can have multiple ExecStart lines
+
+**** 
+     ExecStart are not bash commands; can't use pipes and
+     redirection and so forth, see [[www.freedesktop.org/software/systemd/man/systemd.service.html#Command lines][service man]]
+
+     Environment variables are available in unit files, if
+     not quoted with " they will be expanded as multiple
+     arguments where spaces are present
 
 **** Target Units
      Used to group related units. 
@@ -291,7 +302,7 @@ WantedBy=timers.target
 
 **** Calendar Timers
      Similar to crontab (AFAIK monotonic ones not readily
-     implemented, upd: anacron does this)
+     implemented)
 
      Specified following [[http://www.freedesktop.org/software/systemd/man/systemd.time.html#Calendar%20Events][man systemd.time]] syntax
 
@@ -309,23 +320,23 @@ WantedBy=timers.target
      annually also parse to logical timestamps
      
 **** Additional Timer Options
-     ~AccuracySec~ 
+     *AccuracySec* 
 
      unit will be activated within this time from what is
      specified by timer
      
-     ~Unit~
+     *Unit*
      
      defaults (and recommended) to service with same name as
      timer
 
-     ~Persistent~ 
+     *Persistent*
 
      for timers configured with OnCalendar, runs service if
      it would've been run one or more times since last
      activation
 
-     ~WakeSystem~ 
+     *WakeSystem* 
 
      bool, should the timer's activation resume the system
      from suspend
@@ -349,6 +360,7 @@ MAILTO=jothamapaloo@gmail.com
 0 21 * * 0 /bin/trim
 #+END_SRC
 
+**** 
 Or /etc/cron.[frequency]
 
 #+begin_src sh :results code replace output
@@ -374,11 +386,13 @@ ls /etc/cron*
 
 **** Putting it together
      Understand what unit files are, how service and timer
-     units are related, and the syntax for timer units.
+     units are related, how target units and wants can be
+     used, and the syntax for timer units.
 
      - Setup a basic timer
 
-     - Creating a template service to run when services fail
+     - Create a template service to email the status of
+       failed services
 
      - Demonstate how timer targets can be used in the fashion
        of cron.hourly,daily,weekly,monthly
@@ -401,19 +415,51 @@ Mon 2015-05-04 11:50:54 EDT  21h left      Sun 2015-05-03 11:50:54 EDT  2h 52min
 5 timers listed.
 #+END_SRC
 
-**** TODO Basic Timer
+**** Basic Timer
 
      ~/etc/systemd/system/~
 
-         test.timer
+#+begin_src sh :results verbatim code replace output 
+cat /etc/systemd/system/test.timer
+#+end_src
 
-	 test.service
+#+RESULTS:
+#+BEGIN_SRC
+[Unit]
+Description=Test timer
+
+[Timer]
+OnCalendar=2015-5-4 19-21:*:00
+
+[Install]
+WantedBy=timers.target
+#+END_SRC
+
+#+begin_src sh :results verbatim code replace output 
+cat /etc/systemd/system/test.service
+#+end_src
+
+#+RESULTS:
+#+BEGIN_SRC
+[Unit]
+Description=test
+
+[Service]
+ExecStart=/usr/bin/date
+#+END_SRC
+
+	 
+     list-timers all
+
+     start
+
+     change and reload
 
 **** Error Email Service
 
      Setup a failure status email as a template service.
 
-     From a service ~[Unit]~ section
+     From a service's ~[Unit]~ section, e.g.
 
 #+begin_src sh :results code replace output
 cat /etc/systemd/system/pacqkk.service | grep Fail
@@ -447,8 +493,8 @@ Group=systemd-journal
 
 **** 
      In this case the template service executes a script
-     which takes an email unit name and sends the output of
-     ~systemctl status~ to the given email
+     which takes an email and unit name and sends the output
+     of ~systemctl status unit~ to the given email
 
 #+begin_src sh :results code replace output
 cat ~/bin/systemd-email.sh
@@ -473,16 +519,13 @@ sleep 10s
 #+END_SRC
 
 **** Cron-like setup
+     Time remaining?
+
      [[http://jotham-city.com/blog/2015/04/26/systemd-cron-style/][3 Rs]] - I've done this elsewhere
 
-**** TODO Disadvantages/Caveats
-     execstart are not bash commands; can't use pipes and
-     redirection
-
-     environment variables not directly available from config file
-
-**** Omitted
-     user mode
+**** Further topics
+     - user mode
+     - ...
 
 **** References
      [[http://www.freedesktop.org/software/systemd/man/systemd.unit.html][unit manpage]]
@@ -501,6 +544,13 @@ sleep 10s
 
      [[http://0pointer.de/blog/projects/the-biggest-myths.html][systemd myths]]
 
-     [[https://wiki.debian.org/Debate/initsystem/systemd][debian whiki systemd]]
+     [[https://wiki.debian.org/Debate/initsystem/systemd][debian wiki systemd]]
 
      [[http://0pointer.de/blog/projects/instances.html][template units]]
+
+**** Questions
+     .
+**** systemd Map
+
+#+CAPTION: [[http://en.wikipedia.org/wiki/File:Systemd_components.svg][from systemd wiki]]
+[[./systemd_components.png]]

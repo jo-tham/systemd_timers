@@ -48,59 +48,19 @@ Jotham Apaloo
 <span class="co">#http://pandoc.org/README.html#producing-slide-shows-with-pandoc</span></code></pre></div>
 </div>
 <div class="slide section level4">
-<h1>TODO</h1>
-<ul>
-<li>[X] meaninf of [unit] [install] [service]</li>
-<li>[ ] generic interpreted specifiers
-<ul>
-<li><em>www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers</em></li>
-</ul></li>
-<li>[ ] what does enable do?
-<ul>
-<li><em>www.freedesktop.org/software/systemd/man/systemd.unit.html#Specifiers</em></li>
-</ul></li>
-<li>[ ] check out cronie.service</li>
-<li>[ ] man crond as this is what the cronie.service runs
-<ul>
-<li>ExecStart=/usr/bin/crond -n -m '/usr/bin/msmtp -t'</li>
-</ul></li>
-<li>[ ] Resume/suspend</li>
-<li>[ ] fabrice example
-<ul>
-<li>cron equiv</li>
-<li>01 * * * * /bin/echo Hello, world!</li>
-</ul></li>
-</ul>
-</div>
-<div class="slide section level4">
 <h1>Intro</h1>
-<p>About me :HIDDEN: Came to wloo in 2007 for university. Liked it so much I stayed for a masters.</p>
-<p>Studying geography and doing some stats, machine learning, and working with R.</p>
-<p>When I finished and had some time off while looking for work, I thought it'd be a great time to switch to linux.</p>
-<p>Something made me think Arch would be a good 1st distro. It was! Other than messing up the bootloader on the 1st installation attempt. I liked it so much I put it on this machine (with btrfs)</p>
-<p>I've found it more stable than my fiance's mint machine, granted the arch boxes get more TLC.</p>
-<p>Anyway, the BTRFS talk put some fear in because it was a) excellent and b)raised a bit of debate and critical evaluation. why did i volunteer to display my ignorance of systemd!</p>
-<p>I may be liberal with my focus on the 'timer' aspect of systemd. :END:</p>
-</div>
-<div class="slide section level4">
-<h1>Purpose</h1>
-<p>share my motivation and experience using systemd timers</p>
-<p>motivation :HIDDEN: This can be covered quickly. I wanted to run something at a calendar interval, and it's an opportunity to learn. Also systemd available in base arch system, cron is an additional package. :END:</p>
+<p>Motivation for systemd timers</p>
+<p>Overview of presentation</p>
 </div>
 <div class="slide section level4">
 <h1>About systemd</h1>
-<p>Poettering(Red Hat) and Sievers (SUSE).</p>
-<p>Primary aim is to be an init system.</p>
-<p>Morphed a system and service management collection.</p>
-<p>Controversial.</p>
-<p><a href="http://arstechnica.com/information-technology/2015/05/01/debian-8-linuxs-most-reliable-distro-makes-its-biggest-change-since-1993/1/">Debian Jessie</a> probably marks last of the mainstream distros to accept systemd.</p>
+<p>Poettering (Red Hat) and Sievers (SUSE).</p>
+<p>An init system and service manager.</p>
+<p>Subject of some rather entertaining controversy.</p>
+<p><a href="http://arstechnica.com/information-technology/2015/05/01/debian-8-linuxs-most-reliable-distro-makes-its-biggest-change-since-1993/1/">Debian Jessie</a> probably marks last of the mainstream distros to accept systemd ([2015-04-25 Sat]).</p>
 <blockquote>
 <p>&quot;since systemd appears to be here to stay...it was time to roll up my sleeves and RTFM&quot;</p>
 </blockquote>
-</div>
-<div class="slide section level4">
-<h1>systemd Map</h1>
-<p><img src="./systemd_components.png" alt="" /></p>
 </div>
 <div class="slide section level4">
 <h1>systemctl</h1>
@@ -147,9 +107,8 @@ May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
 <ul>
 <li>systemctl
 <ul>
-<li>running units <code>systemctl</code></li>
 <li>list units</li>
-<li>control-groups</li>
+<li>systemd control-groups</li>
 <li>status</li>
 </ul></li>
 <li>journalctl
@@ -211,7 +170,7 @@ May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
 <p><code>/usr/lib/systemd/</code></p>
 </div>
 <div class="slide section level4">
-<h1>Service Units</h1>
+<h1></h1>
 <p><a href="http://www.freedesktop.org/software/systemd/man/systemd.service.html">manpage</a></p>
 <p>Encodes information about a <em>process</em> governed by systemd.</p>
 <table>
@@ -226,11 +185,11 @@ May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
 </tr>
 <tr class="odd">
 <td align="left"></td>
-<td align="left">used by systemctl enable</td>
+<td align="left">used not at runtime but by</td>
 </tr>
 <tr class="even">
 <td align="left"></td>
-<td align="left">and disable</td>
+<td align="left">systemctl enableand disable</td>
 </tr>
 <tr class="odd">
 <td align="left">[%type%]</td>
@@ -244,7 +203,7 @@ May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
 </table>
 </div>
 <div class="slide section level4">
-<h1></h1>
+<h1>Service Unit</h1>
 <pre><code>cat /etc/systemd/system/multi-user.target.wants/ntpd.service
 </code></pre>
 <pre><code>[Unit]
@@ -266,14 +225,30 @@ WantedBy=multi-user.target
 <h1></h1>
 Service type
 <ul>
-<li><p><strong>Simple</strong> (default under some constraints) assumes <code>ExecStart</code> is main process of the service.</p></li>
+<li><p><strong>Simple</strong> assumes <code>ExecStart</code> is main process of the service.</p></li>
 <li><p><strong>Oneshot</strong> assumes process must <em>exit</em> before follow-up units are started.</p></li>
 </ul>
 <p>For the simple timers I wanted to set up, either works.</p>
 </div>
 <div class="slide section level4">
-<h1>TODO</h1>
-<p><code>ExecStart</code></p>
+<h1></h1>
+<pre><code>WantedBy=multi-user.target
+</code></pre>
+<p>Starts the current unit when the <strong>multi-user.target</strong> unit is started</p>
+<p>Enabling the unit containing WantedBy creates a symlink in the wants directory of the listed unit</p>
+<p>All units (symlinked or otherwise) in <strong>some-unit.wants</strong> are implicity dependencies of <strong>some-unit</strong></p>
+</div>
+<div class="slide section level4">
+<h1></h1>
+<p><strong>ExecStart</strong></p>
+<p>Absolute path to executable followed by arguments to that executable</p>
+<p>Prefix with &quot;-&quot; to ignore failures</p>
+<p>With <code>Type=oneshot</code>, can have multiple ExecStart lines</p>
+</div>
+<div class="slide section level4">
+<h1></h1>
+<p>ExecStart are not bash commands; can't use pipes and redirection and so forth, see <em>service man</em></p>
+<p>Environment variables are available in unit files, if not quoted with &quot; they will be expanded as multiple arguments where spaces are present</p>
 </div>
 <div class="slide section level4">
 <h1>Target Units</h1>
@@ -365,7 +340,7 @@ WantedBy=timers.target
 </div>
 <div class="slide section level4">
 <h1>Calendar Timers</h1>
-<p>Similar to crontab (AFAIK monotonic ones not readily implemented, upd: anacron does this)</p>
+<p>Similar to crontab (AFAIK monotonic ones not readily implemented)</p>
 <p>Specified following <a href="http://www.freedesktop.org/software/systemd/man/systemd.time.html#Calendar%20Events">man systemd.time</a> syntax</p>
 <p><code>Day Y-M-D HH:MM:SS</code></p>
 <p><code>*</code> wildcard</p>
@@ -376,17 +351,17 @@ WantedBy=timers.target
 </div>
 <div class="slide section level4">
 <h1>Additional Timer Options</h1>
-<p><code>AccuracySec</code></p>
+<p><strong>AccuracySec</strong></p>
 <p>unit will be activated within this time from what is specified by timer</p>
-<p><code>Unit</code></p>
+<p><strong>Unit</strong></p>
 <p>defaults (and recommended) to service with same name as timer</p>
-<p><code>Persistent</code></p>
+<p><strong>Persistent</strong></p>
 <p>for timers configured with OnCalendar, runs service if it would've been run one or more times since last activation</p>
-<p><code>WakeSystem</code></p>
+<p><strong>WakeSystem</strong></p>
 <p>bool, should the timer's activation resume the system from suspend</p>
 </div>
 <div class="slide section level4">
-<h1>TODO Recall Cron</h1>
+<h1>Recall Cron</h1>
 <p>Run from crontab</p>
 <pre><code>crontab -l
 </code></pre>
@@ -400,15 +375,34 @@ MAILTO=jothamapaloo@gmail.com
 0 20 * * 3 /bin/backup_system &amp;&amp; /bin/backup_storage
 0 21 * * 0 /bin/trim
 </code></pre>
+</div>
+<div class="slide section level4">
+<h1></h1>
 <p>Or /etc/cron.[frequency]</p>
 <pre><code>ls /etc/cron*
 </code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="kw">/etc/cron.deny</span>
+
+<span class="kw">/etc</span>/cron.d:
+<span class="kw">0hourly</span>
+
+<span class="kw">/etc</span>/cron.daily:
+
+<span class="kw">/etc</span>/cron.hourly:
+<span class="kw">0anacron</span>
+
+<span class="kw">/etc</span>/cron.monthly:
+
+<span class="kw">/etc</span>/cron.weekly:</code></pre></div>
 </div>
 <div class="slide section level4">
 <h1>Putting it together</h1>
-<p>Understand what unit files are, how service and timer units are related, and the syntax for timer units.</p>
-<p>Setup a basic timer</p>
-<p>Demonstate how timer targets can be used in the fashion of cron.hourly,daily,weekly,monthly</p>
+<p>Understand what unit files are, how service and timer units are related, how target units and wants can be used, and the syntax for timer units.</p>
+<ul>
+<li><p>Setup a basic timer</p></li>
+<li><p>Create a template service to email the status of failed services</p></li>
+<li><p>Demonstate how timer targets can be used in the fashion of cron.hourly,daily,weekly,monthly</p></li>
+</ul>
 </div>
 <div class="slide section level4">
 <h1>Viewing systemd timers</h1>
@@ -424,18 +418,41 @@ MAILTO=jothamapaloo@gmail.com
 <span class="kw">5</span> timers listed.</code></pre></div>
 </div>
 <div class="slide section level4">
-<h1>TODO Basic Timer</h1>
+<h1>Basic Timer</h1>
 <p><code>/etc/systemd/system/</code></p>
-<p>test.timer</p>
-<p>test.service</p>
+<pre><code>cat /etc/systemd/system/test.timer
+</code></pre>
+<pre><code>[Unit]
+Description=Test timer
+
+[Timer]
+OnCalendar=2015-5-4 19-21:*:00
+
+[Install]
+WantedBy=timers.target
+</code></pre>
+<pre><code>cat /etc/systemd/system/test.service
+</code></pre>
+<pre><code>[Unit]
+Description=test
+
+[Service]
+ExecStart=/usr/bin/date
+</code></pre>
+<p>list-timers all</p>
+<p>start</p>
+<p>change and reload</p>
 </div>
 <div class="slide section level4">
 <h1>Error Email Service</h1>
 <p>Setup a failure status email as a template service.</p>
-<p>From a service <code>[Unit]</code> section</p>
+<p>From a service's <code>[Unit]</code> section, e.g.</p>
 <pre><code>cat /etc/systemd/system/pacqkk.service | grep Fail
 </code></pre>
 <div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ot">OnFailure=</span>status-email-jotham<span class="kw">@%i.service</span></code></pre></div>
+</div>
+<div class="slide section level4">
+<h1></h1>
 <p>That looks for a service by the exact name, and if not found instantiates a template service.</p>
 <pre><code>cat /etc/systemd/system/status-email-jotham@.service
 </code></pre>
@@ -447,38 +464,40 @@ Type=oneshot
 ExecStart=/home/joth/bin/systemd-email.sh jothamapaloo@gmail.com %i
 Group=systemd-journal
 </code></pre>
+<p><em>interpreted unit file variables</em></p>
 </div>
 <div class="slide section level4">
 <h1></h1>
-<p>In this case the template service executes a script which takes an email unit name and sends the output of <code>systemctl status</code> to the given email</p>
+<p>In this case the template service executes a script which takes an email and unit name and sends the output of <code>systemctl status unit</code> to the given email</p>
 <pre><code>cat ~/bin/systemd-email.sh
 </code></pre>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co">#!/bin/bash</span>
+<pre><code>#!/bin/bash
 
-<span class="kw">/usr/bin/sendmail</span> -t &lt;&lt;ERRMAIL
-To: &quot;<span class="ot">$1</span>&quot;
-From: systemd &lt;&quot;root@<span class="ot">$HOST</span>&quot;&gt;
-Subject: &quot;<span class="ot">$2</span>&quot;
+/usr/bin/sendmail -t &lt;&lt;ERRMAIL
+To: &quot;$1&quot;
+From: systemd &lt;&quot;root@$HOST&quot;&gt;
+Subject: &quot;$2&quot;
 Content-Transfer-Encoding: 8bit
-Content-Type: text/p<span class="kw">lain;</span> <span class="ot">charset=</span>UTF-8
+Content-Type: text/plain; charset=UTF-8
 
-<span class="ot">$(</span><span class="kw">systemctl</span> status --full <span class="st">&quot;</span><span class="ot">$2</span><span class="st">&quot;</span><span class="ot">)</span>
+$(systemctl status --full &quot;$2&quot;)
 ERRMAIL
 
 # hack?
-s<span class="kw">leep</span> 10s</code></pre></div>
+sleep 10s
+</code></pre>
 </div>
 <div class="slide section level4">
 <h1>Cron-like setup</h1>
+<p>Time remaining?</p>
+<p><a href="http://jotham-city.com/blog/2015/04/26/systemd-cron-style/">3 Rs</a> - I've done this elsewhere</p>
 </div>
 <div class="slide section level4">
-<h1>Disadvantages/Caveats</h1>
-<p>execstart are not bash commands; can't use pipes and redirection</p>
-<p>environment variables not directly available from config file</p>
-</div>
-<div class="slide section level4">
-<h1>Omitted</h1>
-<p>user mode</p>
+<h1>Further topics</h1>
+<ul>
+<li>user mode</li>
+<li>...</li>
+</ul>
 </div>
 <div class="slide section level4">
 <h1>References</h1>
@@ -490,8 +509,16 @@ s<span class="kw">leep</span> 10s</code></pre></div>
 <p><a href="https://bbs.archlinux.org/viewtopic.php?pid=1149530#p1149530">why arch moved to systemd</a></p>
 <p><a href="http://without-systemd.org/wiki/index.php/Arguments_against_systemd">against systemd</a></p>
 <p><a href="http://0pointer.de/blog/projects/the-biggest-myths.html">systemd myths</a></p>
-<p><a href="https://wiki.debian.org/Debate/initsystem/systemd">debian whiki systemd</a></p>
+<p><a href="https://wiki.debian.org/Debate/initsystem/systemd">debian wiki systemd</a></p>
 <p><a href="http://0pointer.de/blog/projects/instances.html">template units</a></p>
+</div>
+<div class="slide section level4">
+<h1>Questions</h1>
+<p>.</p>
+</div>
+<div class="slide section level4">
+<h1>systemd Map</h1>
+<p><img src="./systemd_components.png" alt="" /></p>
 </div>
 </body>
 </html>
