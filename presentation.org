@@ -13,6 +13,7 @@ pandoc -t slidy -s presentation.org -o presentation.html
 
      Overview of presentation
 
+**** systemd survey
 **** About systemd
 
      Poettering (Red Hat) and Sievers (SUSE).
@@ -105,7 +106,7 @@ and maintenance.
      | mount     | automount | slice    | scope  |       |
      |-----------+-----------+----------+--------+-------|
 
-     systemd also provides dependency framwork between these
+     systemd also provides dependency framework between these
      units (another presentation perhaps)
 
      Naming convention uses the unit type as suffix.
@@ -289,6 +290,8 @@ WantedBy=timers.target
 
 **** Monotonic Timers
      Run relative to some event
+
+     90m -> 90 minute after event
 
 |-------------------+--------------------------------------------|
 | *specification*   | *relative to*                              |

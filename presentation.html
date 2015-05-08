@@ -53,6 +53,9 @@ Jotham Apaloo
 <p>Overview of presentation</p>
 </div>
 <div class="slide section level4">
+<h1>systemd survey</h1>
+</div>
+<div class="slide section level4">
 <h1>About systemd</h1>
 <p>Poettering (Red Hat) and Sievers (SUSE).</p>
 <p>An init system and service manager.</p>
@@ -152,7 +155,7 @@ May 03 09:11:14 archLenFlex systemd[1]: Started Update man-db cache.
 </tr>
 </tbody>
 </table>
-<p>systemd also provides dependency framwork between these units (another presentation perhaps)</p>
+<p>systemd also provides dependency framework between these units (another presentation perhaps)</p>
 <p>Naming convention uses the unit type as suffix.</p>
 </div>
 <div class="slide section level4">
@@ -307,6 +310,7 @@ WantedBy=timers.target
 <div class="slide section level4">
 <h1>Monotonic Timers</h1>
 <p>Run relative to some event</p>
+<p>90m -&gt; 90 minute after event</p>
 <table>
 <thead>
 <tr class="header">
